@@ -1,2 +1,3 @@
 .venv/
 .development/
+__pycache__/
