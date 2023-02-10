@@ -1,8 +1,19 @@
 import os
 
-from stuff import _ADBTools, MetaSingleton, Status, Device, ADBOutput
+from stuff import MetaSingleton, Status, Device
+import os, subprocess, time
 
-class ADB(_ADBTools, metaclass=MetaSingleton):
+class ADBOutput():
+        def __init__(self, process: subprocess.Popen, wait: bool = True) -> None:
+            self.process = process
+            self.result = None
+            if wait:
+                self.result = ADB.__get_adb_process_result(self.process)
+        def __getattr__(self, attr: str):
+            return getattr(self.result, attr)
+
+class ADB(metaclass=MetaSingleton):
+    DEBUG = False
     """
     TODO:
         [*] __call__ for custom adb commands
@@ -13,6 +24,7 @@ class ADB(_ADBTools, metaclass=MetaSingleton):
         [*] disconnect_wifi() for disconnecting from wifi
         [*] start and kill adb server
         [*] install driver
+        [] enable usb tethering via `adb shell am start -n com.android.settings/.TetherSettings && adb shell input keyevent 20 && adb shell input keyevent 20 && adb shell input keyevent KEYCODE_ENTER && sleep 2 && adb shell input keyevent 4` -- does not work
         [] file transfer with returning progress
         [] apk installation/uninstallation/launching/disabling/enabling
             [] do not forget obb files
@@ -24,10 +36,13 @@ class ADB(_ADBTools, metaclass=MetaSingleton):
     """
 
     def __init__(self) -> None:
-        super().__init__()
+        self._adbpath = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'platform-tools', 'adb.exe')
+        self._device = None
+        self._connected_status: Status = Status.DISCONNECTED
 
     def __call__(self, *args, wait: bool = True, **kwargs) -> ADBOutput:
-        return super().__call__(*args, wait=wait, **kwargs)
+        _process = self.__create_adb_process(*args, **kwargs)
+        return ADBOutput(_process, wait=wait)
 
     @staticmethod
     def install_driver() -> None:
@@ -65,6 +80,21 @@ class ADB(_ADBTools, metaclass=MetaSingleton):
                     break
                 self._connected_status = Status.CONNECTED if not self.is_wifi_ready() else Status.WIFI_READY
 
+    def is_connected(self) -> bool:
+        return self._connected_status not in [Status.DISCONNECTED, Status.NO_DEVICES]
+
+    def is_wifi(self) -> bool:
+        return self._connected_status == Status.WIFI
+
+    def is_wifi_ready(self) -> bool:
+        return self._connected_status in (Status.WIFI_READY, Status.WIFI)
+
+    def is_usb(self) -> bool:
+        return self._connected_status == Status.CONNECTED
+
+    def get_connection_status(self) -> str:
+        return self._connected_status.value
+
     def start_server(self) -> None:
         self('start-server')
         print('Server started')
@@ -92,9 +122,9 @@ class ADB(_ADBTools, metaclass=MetaSingleton):
             print('Already connected to wifi')
             return
         if not self.is_wifi_ready():
-            self._start_tcpip(port)
+            self.__start_tcpip(port)
             # time.sleep(2)
-        self(f'connect {self._parse_ip()}:{port}')
+        self(f'connect {self.__parse_ip()}:{port}')
         self.connect()
 
     def disconnect_wifi(self) -> None:
@@ -214,3 +244,63 @@ class ADB(_ADBTools, metaclass=MetaSingleton):
 
     def get_apps(self):
         pass
+
+    #=== Private Methods ===#
+
+    def __start_tcpip(self, port: int=5555) -> None:
+        try:
+            self(f'tcpip {port}')
+            self._connected_status = Status.WIFI_READY
+        except Exception as e:
+            raise Exception('Failed to start tcpip!\n' + str(e))
+
+    def __parse_ip(self) -> str:
+        if self.is_wifi_ready():
+            for _ in range(10):
+                try:
+                    adb_output = self('shell ip addr show wlan0', wait=True)
+                    if adb_output:
+                        adb_output = adb_output.splitlines()
+                        break
+                except:
+                    time.sleep(0.5)
+                    continue
+            for line in adb_output: # type: ignore
+                if 'inet ' in line:
+                    return line.split()[1].split('/')[0]
+            raise Exception('Ip not found in wlan0 interface. Is the device connected to a network?')
+        else:
+            self.__start_tcpip()
+            return self.__parse_ip()
+
+    def __parse_args(self, args: tuple[str]) -> list[str]:
+        _args = []
+        for arg in args:
+            if isinstance(arg, list):
+                _args.extend(arg)
+            else:
+                _args.extend(arg.split())
+        return _args
+
+    def __create_adb_process(self, *args, **kwargs) -> subprocess.Popen:
+        args = self.__parse_args(args)
+        adb = fr'{self._adbpath} -s {self._device.name}'.split() if self._device else [self._adbpath]
+        if self.DEBUG:
+            print('command:', ' '.join(adb + args))
+        process = subprocess.Popen(adb + args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='utf-8', **kwargs)
+        return process
+
+    @staticmethod
+    def __get_adb_process_result(process: subprocess.Popen) -> str:
+        process.wait()
+        if process.returncode != 0:
+            stderr = process.stderr.read().strip() # type: ignore
+            stdout = process.stdout.read().strip() # type: ignore
+            raise Exception(f"ADB command \n\t" +
+                            f"{' '.join(process.args)}\n" + # type: ignore
+                            f"failed with code {process.returncode}" + ('' if not stderr else f': {stderr}'))
+        return process.stdout.read().strip() # type: ignore
+
+    @staticmethod
+    def kill_process(process: subprocess.Popen) -> None:
+        process.kill()
