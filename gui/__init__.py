@@ -1,139 +1,6 @@
-from PySide6.QtCore import (
-    Qt,
-    )
-from PySide6.QtGui import (
-    QPixmap, QGuiApplication
-    )
-from PySide6.QtWidgets import (
-    QApplication, QHBoxLayout, QLabel, QLayout,
-    QMainWindow, QPushButton, QSizePolicy, QSpacerItem,
-    QVBoxLayout, QWidget,
-    )
+from .widgets import *
 
-import sys, os
-
-"""
-звездочкой помечены кнопки, по нажатию на которые открывается новое окно
-Главный экран:
-    Справа статус бар, отображающий шлем и статус подключения
-
-    Кнопки:
-        Инструменты
-        Программы/Игры
-        Фильмы/видео
-        Поиск команды
-        Помощь
-
-    Область переключений в зависимости от выбранной кнопки:
-
-        Инструменты:
-            Установить драйвер
-            Вкл adb по wifi
-            * Установка программ
-            * Управление приложениями
-            * Выполнить команду
-            Перезагрузить шлем
-
-            * Переключить регион
-            * Прошить шлем
-            * Псевдо-прошивка
-
-            Установка программ:
-                Выбор файла apk
-                Выбор файла obb
-                Кнопка установить
-                Прогресс бар
-
-            Управление приложениями:
-                Список установленных приложений
-                Бэкап приложений
-                Включение/выключение приложений
-                Удаление приложений
-                Управление правами
-
-            Выполнить команду:
-                Ввод команды
-                Кнопка выполнить
-                Вывод команды
-
-            Переключить регион:
-                Выбор региона
-                Кнопка переключить
-
-            Прошить шлем:
-                Выбор файла прошивки
-                Кнопка "скачать прошивку"
-                Кнопка прошить
-                ПРЕДЕПРЕЖДЕНИЕ
-
-            Псевдо-прошивка:
-                Настройки
-                Кнопка "прошить"
-
-        Программы/Игры:
-            Поиск по названию/тегам/для какой прошивки/PCVR
-            Список программ/игр:
-                Картинка (меняются по таймеру при наведении)
-                Название
-                Вес
-                Оценка
-                Теги
-                Для какой прошивки
-                Версия игры
-                Кнопка "установить"/"обновить"/"удалить"/ссылка для PCVR
-
-            По нажатию на элемент списка открывается окно с подробной информацией:
-                название
-                Крупная картинка/видео
-                карусель с картинками
-                Описание
-                Теги
-                Вес
-                Оценка
-                Оценить
-                Теги
-                Для какой прошивки
-                Версия игры
-                Кнопка "установить"/"обновить"/"удалить"/ссылка для PCVR
-                Отзывы
-                Кол-во скачиваний и установок
-                Оставить отзыв
-                когда загружено/обновлено
-                Кнопка "Поиск команды"
-
-
-        Фильмы/Видео:
-            Поиск по названию/тегам
-            *ссылка на FAQ как смотреть
-            Список фильмов/видео:
-                Картинка (меняются по таймеру при наведении)
-                Название
-                Вес
-                Оценка
-                Теги
-                Кнопка "скачать на шлем"/"скачать на комп"/ссылка на скачивание
-
-                окошко аналогично программам/играм
-
-        Поиск команды:
-            (время последнего входа, статус (онлайн, оффлайн, играет в ...), если не входил неделю, то помечаем неактивным)
-            Контакты для связи (телеграм, дискорд, свои контакты)
-            предпочитаемый язык
-            Время доступности для игр, часовой пояс
-            Желаемые игры
-            Текущие игры
-
-        Помощь:
-            *FAQ
-            Ссылки на PicoLAND, гитхаб
-            текст с просьбами донатов на игры/на сервера/на чай админу/на чай мне
-
-            Форма сбора предложений/отзывов/пожеланий
-
-
-Стили из файла style.qss
-"""
-class MainWindow(QWidget):
+class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.create_widgets()
@@ -141,6 +8,8 @@ class MainWindow(QWidget):
         self.init_ui()
         self.retranslate_ui()
         self.bind_events()
+        # self.restart_adb()
+        self.start_polling()
 
     def create_widgets(self):
         # left_panel
@@ -156,13 +25,16 @@ class MainWindow(QWidget):
         # right_panel
         self.device_name = QLabel()
         self.device_picture = QLabel()
-        self.btn_connect = QPushButton('Подключиться')
         self.btn_tools = QPushButton('Инструменты')
         self.device_status = QLabel()
-        self.device_status_picture = QLabel()
+        self.device_usb_status_picture = QLabel()
+        self.device_wifi_status_picture = QLabel()
         # self.device_tags = QTableWidget()
         self.btn_update_app = QPushButton('Обновления')
-        self.version = QLabel('v0.0.1')
+        self.version = QLabel('v' + config.get('DO_NOT_MODIFY', 'version'))
+
+        # timer
+        self.timer = QTimer()
 
     def setup_ui(self):
         self.setWindowTitle("PicoF*cker")
@@ -175,12 +47,12 @@ class MainWindow(QWidget):
         with open("./gui/style.qss", "r") as f:
             self.setStyleSheet(f.read())
 
-        # disable buttons
-        self.btn_games.setEnabled(False)
-        self.btn_movies.setEnabled(False)
-        self.btn_community.setEnabled(False)
-        self.btn_help.setEnabled(False)
-        self.btn_settings.setEnabled(False)
+        # # disable buttons
+        # self.btn_games.setEnabled(False)
+        # self.btn_movies.setEnabled(False)
+        # self.btn_community.setEnabled(False)
+        # self.btn_help.setEnabled(False)
+        # self.btn_settings.setEnabled(False)
 
 
     def init_ui(self):
@@ -201,17 +73,13 @@ class MainWindow(QWidget):
         self.main_layout.addWidget(self.content_widget)
         self.set_content_widget(DefaultContentWidget())
 
-        # right_panel
-        class BoldLabel(QLabel):
-            def __init__(self, text):
-                super().__init__(text)
-                self.setStyleSheet('font-weight: bold;')
-                self.setAlignment(Qt.AlignRight)
-
+        # # right_panel
         right_panel = QVBoxLayout()
 
         hbox = QHBoxLayout()
-        text = BoldLabel('Название:')
+        text = QLabel('Название:')
+        text.setStyleSheet('font-weight: bold;')
+        text.setAlignment(Qt.AlignRight)
         hbox.addWidget(text)
         hbox.addWidget(self.device_name)
         right_panel.addLayout(hbox)
@@ -223,18 +91,24 @@ class MainWindow(QWidget):
         self.device_picture.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Expanding)
         right_panel.addWidget(self.device_picture)
 
-        right_panel.addWidget(self.btn_connect)
         right_panel.addWidget(self.btn_tools)
 
         hbox = QHBoxLayout()
-        text = BoldLabel('Статус:')
+        text = QLabel('Статус:')
+        text.setStyleSheet('font-weight: bold;')
+        text.setAlignment(Qt.AlignRight)
         hbox.addWidget(text)
-        self.set_device_status_picture('./gui/img/usb.png')
-        self.device_status_picture.setFixedSize(20, 20)
-        self.device_status_picture.setScaledContents(True)
-        self.device_status_picture.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
-        self.device_status_picture.setAlignment(Qt.AlignCenter)
-        hbox.addWidget(self.device_status_picture)
+        self.update_device_status_picture()
+        self.device_usb_status_picture.setFixedSize(20, 20)
+        self.device_usb_status_picture.setScaledContents(True)
+        self.device_usb_status_picture.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+        self.device_usb_status_picture.setAlignment(Qt.AlignCenter)
+        hbox.addWidget(self.device_usb_status_picture)
+        self.device_wifi_status_picture.setFixedSize(20, 20)
+        self.device_wifi_status_picture.setScaledContents(True)
+        self.device_wifi_status_picture.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+        self.device_wifi_status_picture.setAlignment(Qt.AlignCenter)
+        hbox.addWidget(self.device_wifi_status_picture)
         hbox.addWidget(self.device_status)
         right_panel.addLayout(hbox)
 
@@ -247,27 +121,57 @@ class MainWindow(QWidget):
         # self.device_tags.horizontalHeader().setVisible(False)
         # right_panel.addWidget(self.device_tags)
 
-
         right_panel.addItem(QSpacerItem(0, 0, QSizePolicy.Minimum, QSizePolicy.Expanding))
 
         hbox = QHBoxLayout()
         hbox.addWidget(self.btn_update_app)
-        self.version.setAlignment(Qt.AlignRight|Qt.AlignVCenter)
+        self.version.setAlignment(Qt.AlignRight|Qt.AlignBottom) # type: ignore
         hbox.addWidget(self.version)
         right_panel.addLayout(hbox)
 
         self.main_layout.addLayout(right_panel)
 
-        self.setLayout(self.main_layout)
+        central_widget = QWidget()
+        central_widget.setLayout(self.main_layout)
+        self.setCentralWidget(central_widget)
 
     def set_content_widget(self, widget):
         self.main_layout.removeWidget(self.content_widget)
         self.content_widget.deleteLater()
         self.content_widget = widget
+        self.content_widget.setMinimumSize(300, self.minimumHeight())
         self.main_layout.insertWidget(1, widget)
 
-    def set_device_status_picture(self, path):
-        self.device_status_picture.setPixmap(QPixmap(path))
+    def update_device_status_picture(self):
+        try:
+            status = adb.get_connection_status()
+        except:
+            self.device_usb_status_picture.setPixmap(QPixmap('./gui/img/disconnected.png'))
+            self.device_wifi_status_picture.hide()
+            self.device_usb_status_picture.show()
+            self.device_name.setText('Не подключено')
+            self.device_status.setText('Отключено')
+            self.set_device_picture('./gui/img/not_connected.png')
+        else:
+            match status:
+                case 'NO_DEVICES':
+                    self.device_usb_status_picture.setPixmap(QPixmap('./gui/img/disconnected.png'))
+                    self.device_wifi_status_picture.hide()
+                case 'DISCONNECTED':
+                    self.device_usb_status_picture.setPixmap(QPixmap('./gui/img/usb_ready.png'))
+                    self.device_wifi_status_picture.hide()
+                case 'USB':
+                    self.device_usb_status_picture.setPixmap(QPixmap('./gui/img/usb.png'))
+                    self.device_wifi_status_picture.hide()
+                case 'WIFI_READY':
+                    self.device_usb_status_picture.setPixmap(QPixmap('./gui/img/usb.png'))
+                    self.device_wifi_status_picture.setPixmap(QPixmap('./gui/img/wifi_ready.png'))
+                    self.device_wifi_status_picture.show()
+                    self.device_usb_status_picture.show()
+                case 'WIFI':
+                    self.device_usb_status_picture.hide()
+                    self.device_wifi_status_picture.setPixmap(QPixmap('./gui/img/wifi.png'))
+                    self.device_wifi_status_picture.show()
 
     def set_device_picture(self, path):
         self.device_picture.setPixmap(QPixmap(path))
@@ -277,18 +181,43 @@ class MainWindow(QWidget):
         pass
 
     def bind_events(self):
-        # привязка событий к элементам интерфейса
-        pass
+        self.btn_tools.clicked.connect(lambda: self.set_content_widget(ToolsContentWidget()))
+        self.btn_games.clicked.connect(lambda: self.set_content_widget(GamesContentWidget()))
+        self.btn_movies.clicked.connect(lambda: self.set_content_widget(MoviesContentWidget()))
+        self.btn_help.clicked.connect(lambda: self.set_content_widget(HelpContentWidget()))
+        self.btn_community.clicked.connect(lambda: self.set_content_widget(CommunityContentWidget()))
+        # self.btn_settings.clicked.connect(lambda: self.set_content_widget(SettingsContentWidget()))
+        self.btn_settings.clicked.connect(self.__TODO_open_settings) # TODO: make normal settings widget
+
+    def __TODO_open_settings(self):
+        res = os.system('notepad config.cfg')
+        if res == 0:
+            config.read('config.cfg')
+
+    def start_polling(self, interval=config.getint('DO_NOT_MODIFY', 'polling_interval')):
+        self.timer.timeout.connect(self.update_device)
+        self.timer.start(interval)
+
+    def pause_polling(self):
+        self.timer.stop()
+
+    def resume_polling(self):
+        self.timer.start()
+
+    def update_device(self):
+        try:
+            adb.connect()
+            device = adb.get_device()
+            status = adb.get_connection_status()
+        except:
+            pass
+        else:
+            self.device_name.setText(device.name)
+            self.device_status.setText(status)
+            self.set_device_picture('./gui/img/pico4.png')
+        finally:
+            self.update_device_status_picture()
 
 
-class DefaultContentWidget(QWidget):
-    def __init__(self):
-        super().__init__()
-        text = QLabel('Нажмите на кнопку "Инструменты" справа')
-        text.setAlignment(Qt.AlignCenter)
-        text.setWordWrap(True)
-        hbox = QHBoxLayout()
-        hbox.addItem(QSpacerItem(0, 0, QSizePolicy.Expanding, QSizePolicy.Minimum))
-        hbox.addWidget(text)
-        hbox.addItem(QSpacerItem(0, 0, QSizePolicy.Expanding, QSizePolicy.Minimum))
-        self.setLayout(hbox)
+    def restart_adb(self):
+        adb.restart_server()
