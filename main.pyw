@@ -5,7 +5,6 @@ from gui import MainWindow, QApplication
 # if not con.open():
 #     print("Database Error: %s" % con.lastError().databaseText())
 #     sys.exit(1)
-
 app = QApplication() # sys.argv
 window = MainWindow()
 window.show()

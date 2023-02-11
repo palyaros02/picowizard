@@ -1,5 +1,3 @@
-import os
-
 from .stuff import MetaSingleton, Status, Device
 from config_parser import config
 import os, subprocess, time
@@ -60,7 +58,10 @@ class ADB(metaclass=MetaSingleton):
     def get_devices_list(self) -> list[Device]:
         adb_output = self('devices -l').splitlines()
         devices_lines_list = [line.split() for line in adb_output if line.split().count('device') == 1]
-        # ['ID device product:Phoenix_ovs model:A8110 device:PICOA8110 transport_id:4', ...]
+        # ['ID device product:Phoenix_ovs model:A8110 device:PICOA8110 transport_id:4', ...] - pico4
+        # ID device product:A7P10 model:Pico_Neo_3_Link device:PICOA7H10 transport_id:2 - pico3
+        # device product:A7H10 model:Pico_Neo_3 device:PICOA7H10 transport_id:1
+        # device product:A7P10 model:Pico_Neo_3_Link device:PICOA7H10 transport_id:1
         if not devices_lines_list:
             self._connected_status = Status.NO_DEVICES
             raise Exception('No devices found')
@@ -83,6 +84,10 @@ class ADB(metaclass=MetaSingleton):
         devices = self.get_devices_list()
         for device in devices:
             if device.tags['device'].startswith('PICO'):
+                if '_3' in device.tags['model']:
+                    device.tags['type'] = 'PICO3'
+                else:
+                    device.tags['type'] = 'PICO4'
                 self._device = device
                 if device.name.endswith('5555'):
                     self._connected_status = Status.WIFI
@@ -247,17 +252,9 @@ class ADB(metaclass=MetaSingleton):
         """
         pass
 
-    def push(self):
-        """
-        adb push [-a] [-p] [-r] [-t DATE] [-T DATE] [-v] LOCAL... REMOTE
-        Copy files/directories to device.  If LOCAL is a directory, it will be
-        copied recursively.  Use -a to copy file permissions.  Use -p to preserve
-        file modification times.  Use -r to copy directories recursively.  Use -v
-        to see the names of files as they are being copied.  Use -t to specify
-        the time of the file on the device.  Use -T to specify the time of the file
-        on the host.  If -t and -T are not specified, the current time will be used.
-        """
-        pass
+    def push(self, local: str, remote: str) -> subprocess.Popen:
+        process = self(f'push -p {local} {remote}', wait=False).process
+        return process
 
     def pull(self):
         pass

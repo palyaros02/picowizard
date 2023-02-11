@@ -214,7 +214,10 @@ class MainWindow(QMainWindow):
         else:
             self.device_name.setText(device.name)
             self.device_status.setText(status)
-            self.set_device_picture('./gui/img/pico4.png')
+            if device.tags['type'] == 'PICO4':
+                self.set_device_picture('./gui/img/pico4.png')
+            else:
+                self.set_device_picture('./gui/img/pico3.png')
         finally:
             self.update_device_status_picture()
 
