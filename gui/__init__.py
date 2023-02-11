@@ -186,13 +186,8 @@ class MainWindow(QMainWindow):
         self.btn_movies.clicked.connect(lambda: self.set_content_widget(MoviesContentWidget()))
         self.btn_help.clicked.connect(lambda: self.set_content_widget(HelpContentWidget()))
         self.btn_community.clicked.connect(lambda: self.set_content_widget(CommunityContentWidget()))
-        # self.btn_settings.clicked.connect(lambda: self.set_content_widget(SettingsContentWidget()))
-        self.btn_settings.clicked.connect(self.__TODO_open_settings) # TODO: make normal settings widget
-
-    def __TODO_open_settings(self):
-        res = os.system('notepad config.cfg')
-        if res == 0:
-            config.read('config.cfg')
+        self.btn_settings.clicked.connect(lambda: self.set_content_widget(SettingsContentWidget()))
+        self.btn_update_app.clicked.connect(self.update_app)
 
     def start_polling(self, interval=config.getint('DO_NOT_MODIFY', 'polling_interval')):
         self.timer.timeout.connect(self.update_device)
@@ -221,6 +216,9 @@ class MainWindow(QMainWindow):
         finally:
             self.update_device_status_picture()
 
-
     def restart_adb(self):
         adb.restart_server()
+
+    def update_app(self):
+        #FIXME: сделать нормальное обновление
+        os.startfile('https://github.com/palyaros02/picofucker')
