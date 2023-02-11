@@ -1,17 +1,20 @@
 from .widgets import *
 
 class MainWindow(QMainWindow):
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
         self.create_widgets()
-        self.setup_ui()
         self.init_ui()
+        self.setup_ui()
         self.retranslate_ui()
         self.bind_events()
         # self.restart_adb()
         self.start_polling()
 
-    def create_widgets(self):
+        # timer
+        self.timer = QTimer()
+
+    def create_widgets(self) -> None:
         # left_panel
         self.btn_games = QPushButton('Игры')
         self.btn_movies = QPushButton('Фильмы')
@@ -33,29 +36,7 @@ class MainWindow(QMainWindow):
         self.btn_update_app = QPushButton('Обновления')
         self.version = QLabel('v' + config.get('DO_NOT_MODIFY', 'version'))
 
-        # timer
-        self.timer = QTimer()
-
-    def setup_ui(self):
-        self.setWindowTitle("PicoF*cker")
-        self.setMinimumSize(800, 600)
-        cp = QGuiApplication.primaryScreen().availableGeometry().center()
-        qr = self.frameGeometry()
-        qr.moveCenter(cp)
-        self.move(qr.topLeft())
-
-        with open("./gui/style.qss", "r") as f:
-            self.setStyleSheet(f.read())
-
-        # # disable buttons
-        # self.btn_games.setEnabled(False)
-        # self.btn_movies.setEnabled(False)
-        # self.btn_community.setEnabled(False)
-        # self.btn_help.setEnabled(False)
-        # self.btn_settings.setEnabled(False)
-
-
-    def init_ui(self):
+    def init_ui(self) -> None:
         self.main_layout = QHBoxLayout()
 
         # left_panel
@@ -73,9 +54,9 @@ class MainWindow(QMainWindow):
         self.main_layout.addWidget(self.content_widget)
         self.set_content_widget(DefaultContentWidget())
 
-        # # right_panel
+        # right_panel
         right_panel = QVBoxLayout()
-
+        ## device_name
         hbox = QHBoxLayout()
         text = QLabel('Название:')
         text.setStyleSheet('font-weight: bold;')
@@ -84,6 +65,7 @@ class MainWindow(QMainWindow):
         hbox.addWidget(self.device_name)
         right_panel.addLayout(hbox)
 
+        ## device_picture
         self.set_device_picture('./gui/img/not_connected.png')
         self.device_picture.setAlignment(Qt.AlignCenter)
         self.device_picture.setFixedSize(250, 150)
@@ -91,8 +73,10 @@ class MainWindow(QMainWindow):
         self.device_picture.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Expanding)
         right_panel.addWidget(self.device_picture)
 
+        ## tools button
         right_panel.addWidget(self.btn_tools)
 
+        ## connection status
         hbox = QHBoxLayout()
         text = QLabel('Статус:')
         text.setStyleSheet('font-weight: bold;')
@@ -123,6 +107,7 @@ class MainWindow(QMainWindow):
 
         right_panel.addItem(QSpacerItem(0, 0, QSizePolicy.Minimum, QSizePolicy.Expanding))
 
+        ## update button and version
         hbox = QHBoxLayout()
         hbox.addWidget(self.btn_update_app)
         self.version.setAlignment(Qt.AlignRight|Qt.AlignBottom) # type: ignore
@@ -131,18 +116,40 @@ class MainWindow(QMainWindow):
 
         self.main_layout.addLayout(right_panel)
 
+    def setup_ui(self) -> None:
         central_widget = QWidget()
         central_widget.setLayout(self.main_layout)
         self.setCentralWidget(central_widget)
+        self.setWindowTitle("PicoF*cker")
+        self.setMinimumSize(800, 600)
+        cp = QGuiApplication.primaryScreen().availableGeometry().center()
+        qr = self.frameGeometry()
+        qr.moveCenter(cp)
+        self.move(qr.topLeft())
+        with open("./gui/style.qss", "r") as f:
+            self.setStyleSheet(f.read())
 
-    def set_content_widget(self, widget):
+    def retranslate_ui(self) -> None:
+        # перевод интерфейса
+        pass
+
+    def bind_events(self) -> None:
+        self.btn_tools.clicked.connect(lambda: self.set_content_widget(ToolsContentWidget()))
+        self.btn_games.clicked.connect(lambda: self.set_content_widget(GamesContentWidget()))
+        self.btn_movies.clicked.connect(lambda: self.set_content_widget(MoviesContentWidget()))
+        self.btn_help.clicked.connect(lambda: self.set_content_widget(HelpContentWidget()))
+        self.btn_community.clicked.connect(lambda: self.set_content_widget(CommunityContentWidget()))
+        self.btn_settings.clicked.connect(lambda: self.set_content_widget(SettingsContentWidget()))
+        self.btn_update_app.clicked.connect(self.update_app)
+
+    def set_content_widget(self, widget) -> None:
         self.main_layout.removeWidget(self.content_widget)
         self.content_widget.deleteLater()
         self.content_widget = widget
         self.content_widget.setMinimumSize(300, self.minimumHeight())
         self.main_layout.insertWidget(1, widget)
 
-    def update_device_status_picture(self):
+    def update_device_status_picture(self) -> None:
         try:
             status = adb.get_connection_status()
         except:
@@ -173,33 +180,20 @@ class MainWindow(QMainWindow):
                     self.device_wifi_status_picture.setPixmap(QPixmap('./gui/img/wifi.png'))
                     self.device_wifi_status_picture.show()
 
-    def set_device_picture(self, path):
+    def set_device_picture(self, path) -> None:
         self.device_picture.setPixmap(QPixmap(path))
-
-    def retranslate_ui(self):
-        # перевод интерфейса
-        pass
-
-    def bind_events(self):
-        self.btn_tools.clicked.connect(lambda: self.set_content_widget(ToolsContentWidget()))
-        self.btn_games.clicked.connect(lambda: self.set_content_widget(GamesContentWidget()))
-        self.btn_movies.clicked.connect(lambda: self.set_content_widget(MoviesContentWidget()))
-        self.btn_help.clicked.connect(lambda: self.set_content_widget(HelpContentWidget()))
-        self.btn_community.clicked.connect(lambda: self.set_content_widget(CommunityContentWidget()))
-        self.btn_settings.clicked.connect(lambda: self.set_content_widget(SettingsContentWidget()))
-        self.btn_update_app.clicked.connect(self.update_app)
 
     def start_polling(self, interval=config.getint('DO_NOT_MODIFY', 'polling_interval')):
         self.timer.timeout.connect(self.update_device)
         self.timer.start(interval)
 
-    def pause_polling(self):
+    def pause_polling(self) -> None:
         self.timer.stop()
 
-    def resume_polling(self):
+    def resume_polling(self) -> None:
         self.timer.start()
 
-    def update_device(self):
+    def update_device(self) -> None:
         try:
             adb.connect()
             device = adb.get_device()
@@ -216,9 +210,9 @@ class MainWindow(QMainWindow):
         finally:
             self.update_device_status_picture()
 
-    def restart_adb(self):
+    def restart_adb(self) -> None:
         adb.restart_server()
 
-    def update_app(self):
+    def update_app(self) -> None:
         #FIXME: сделать нормальное обновление
         os.startfile('https://github.com/palyaros02/picofucker')
