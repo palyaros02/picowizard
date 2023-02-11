@@ -1,6 +1,7 @@
 import os
 
-from stuff import MetaSingleton, Status, Device
+from .stuff import MetaSingleton, Status, Device
+from config_parser import config
 import os, subprocess, time
 
 class ADBOutput():
@@ -8,12 +9,20 @@ class ADBOutput():
             self.process = process
             self.result = None
             if wait:
-                self.result = ADB.__get_adb_process_result(self.process)
+                self.result = ADB._get_adb_process_result(self.process)  # type: ignore
         def __getattr__(self, attr: str):
             return getattr(self.result, attr)
+        def __str__(self):
+            return str(self.result)
+        def __radd__(self, other):
+            return other + self.result
+        def __add__(self, other):
+            return self.result + other
+        def __eq__(self, other):
+            return self.result == other
 
 class ADB(metaclass=MetaSingleton):
-    DEBUG = False
+    DEBUG = config.getboolean('DEBUG', 'debug_adb')
     """
     TODO:
         [*] __call__ for custom adb commands
@@ -131,6 +140,17 @@ class ADB(metaclass=MetaSingleton):
         if self.is_wifi():
             self('disconnect')
             self.connect()
+
+    def get_oem_state(self):
+        return self('shell getprop ro.oem.state')
+
+    def set_region(self, region: str) -> None:
+        self(f'shell settings put global user_settings_initialized {region}')
+
+    def get_region(self):
+        return self('shell settings get global user_settings_initialized')
+
+
 
 
     def install_apk(self):
@@ -291,7 +311,7 @@ class ADB(metaclass=MetaSingleton):
         return process
 
     @staticmethod
-    def __get_adb_process_result(process: subprocess.Popen) -> str:
+    def _get_adb_process_result(process: subprocess.Popen) -> str:
         process.wait()
         if process.returncode != 0:
             stderr = process.stderr.read().strip() # type: ignore
@@ -304,3 +324,5 @@ class ADB(metaclass=MetaSingleton):
     @staticmethod
     def kill_process(process: subprocess.Popen) -> None:
         process.kill()
+
+adb = ADB()

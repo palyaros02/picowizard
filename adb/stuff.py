@@ -4,7 +4,7 @@ from typing import NamedTuple
 
 class Status(Enum):
     DISCONNECTED = "DISCONNECTED"
-    CONNECTED = "CONNECTED"
+    CONNECTED = "USB"
     WIFI_READY = "WIFI_READY"
     WIFI = "WIFI"
     NO_DEVICES = "NO_DEVICES"
