@@ -133,7 +133,7 @@ class MainWindow(QMainWindow):
         pass
 
     def bind_events(self) -> None:
-        self.btn_tools.clicked.connect(lambda: self.set_content_widget(ToolsContentWidget()))
+        self.btn_tools.clicked.connect(lambda: self.set_content_widget(ToolsContentWidget(window=self)))
         self.btn_games.clicked.connect(lambda: self.set_content_widget(GamesContentWidget()))
         self.btn_movies.clicked.connect(lambda: self.set_content_widget(MoviesContentWidget()))
         self.btn_help.clicked.connect(lambda: self.set_content_widget(HelpContentWidget()))
@@ -153,17 +153,11 @@ class MainWindow(QMainWindow):
         try:
             status = adb.get_connection_status()
         except:
-            self.device_usb_status_picture.setPixmap(QPixmap('./gui/img/disconnected.png'))
-            self.device_wifi_status_picture.hide()
-            self.device_usb_status_picture.show()
-            self.device_name.setText('Не подключено')
-            self.device_status.setText('Отключено')
-            self.set_device_picture('./gui/img/not_connected.png')
+            self.set_device_not_connected()
         else:
             match status:
                 case 'NO_DEVICES':
-                    self.device_usb_status_picture.setPixmap(QPixmap('./gui/img/disconnected.png'))
-                    self.device_wifi_status_picture.hide()
+                    self.set_device_not_connected()
                 case 'DISCONNECTED':
                     self.device_usb_status_picture.setPixmap(QPixmap('./gui/img/usb_ready.png'))
                     self.device_wifi_status_picture.hide()
@@ -179,6 +173,14 @@ class MainWindow(QMainWindow):
                     self.device_usb_status_picture.hide()
                     self.device_wifi_status_picture.setPixmap(QPixmap('./gui/img/wifi.png'))
                     self.device_wifi_status_picture.show()
+
+    def set_device_not_connected(self) -> None:
+        self.device_usb_status_picture.setPixmap(QPixmap('./gui/img/disconnected.png'))
+        self.device_wifi_status_picture.hide()
+        self.device_usb_status_picture.show()
+        self.device_name.setText('Не подключено')
+        self.device_status.setText('Отключено')
+        self.set_device_picture('./gui/img/not_connected.png')
 
     def set_device_picture(self, path) -> None:
         self.device_picture.setPixmap(QPixmap(path))
@@ -212,7 +214,11 @@ class MainWindow(QMainWindow):
             self.update_device_status_picture()
 
     def restart_adb(self) -> None:
-        adb.restart_server()
+        self.set_device_not_connected()
+        self.pause_polling()
+        self.restart_adb_thread = RestartAdbThread()
+        self.restart_adb_thread.finished.connect(self.resume_polling)
+        self.restart_adb_thread.start()
 
     def open_stream(self) -> None:
         ip = adb.get_device_ip()
@@ -227,3 +233,9 @@ class MainWindow(QMainWindow):
     def update_app(self) -> None:
         #FIXME: сделать нормальное обновление
         os.startfile('https://github.com/palyaros02/picofucker')
+
+class RestartAdbThread(QThread):
+    def __init__(self):
+        super().__init__()
+    def run(self):
+        adb.restart_server()

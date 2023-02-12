@@ -90,6 +90,8 @@ class ADB(metaclass=MetaSingleton):
                 else:
                     device.tags['type'] = 'pico4'
                 self._device = device
+                if not self._ip:
+                    self.__is_tcp_runned()
                 if device.name.endswith('5555'):
                     self._connected_status = Status.WIFI
                     break
@@ -112,14 +114,16 @@ class ADB(metaclass=MetaSingleton):
 
     def start_server(self) -> None:
         self('start-server')
-        print('Server started')
-        self.connect_usb()
+        if self.DEBUG:
+            print('Server started')
 
     def kill_server(self) -> None:
-        print('Killing server')
-        self('kill-server')
+        if self.DEBUG:
+            print('Killing server')
         self._connected_status = Status.NO_DEVICES
         self._device = None
+        self._ip = ''
+        self('kill-server')
 
     def restart_server(self) -> None:
         self.kill_server()
@@ -160,9 +164,6 @@ class ADB(metaclass=MetaSingleton):
         if not self._ip:
             self.__parse_ip()
         return self._ip
-
-
-
 
     def install_apk(self):
         """
@@ -278,6 +279,8 @@ class ADB(metaclass=MetaSingleton):
             raise Exception('Failed to start tcpip!\n' + str(e))
 
     def __parse_ip(self) -> str:
+        if self._ip:
+            return self._ip
         if self.is_wifi_ready():
             for _ in range(10):
                 try:
@@ -296,6 +299,16 @@ class ADB(metaclass=MetaSingleton):
         else:
             self.__start_tcpip()
             return self.__parse_ip()
+
+    def __is_tcp_runned(self) -> bool:
+        res = str(self('shell ip addr show wlan0', wait=True))
+        if 'inet ' in res:
+            self._connected_status = Status.WIFI_READY
+            self.__parse_ip()
+            return True
+        else:
+            return False
+
 
     def __parse_args(self, args: tuple[str]) -> list[str]:
         _args = []

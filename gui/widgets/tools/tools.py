@@ -6,15 +6,16 @@ from .manage_apps import ManageAppsDialog
 from .run_adb_command import RunAdbCommandDialog
 
 class ToolsContentWidget(QWidget):
-    def __init__(self):
+    def __init__(self, window):
         super().__init__()
+        self.window = window
         self.create_widgets()
         self.init_layout()
         self.bind_events()
 
     def create_widgets(self):
         self.btn_install_driver = QPushButton('Установить драйвер ADB')
-        self.btn_restart_server = QPushButton('Перезапустить сервер ADB (ждать)')
+        self.btn_restart_server = QPushButton('Перезапустить сервер ADB')
         self.btn_reboot_device = QPushButton('Перезагрузить шлем')
         self.btn_enable_wifi = QPushButton('USB -> WiFi (ждать)')
         self.btn_disable_wifi = QPushButton('WiFi -> USB')
@@ -48,7 +49,6 @@ class ToolsContentWidget(QWidget):
         if adb.get_device().tags['type'] == 'PICO3':
             self.btn_switch_region.setText('Смена региона доступна только на PICO4')
             self.btn_switch_region.setEnabled(False)
-
         self.btn_install_app.setEnabled(False)
         self.btn_manage_apps.setEnabled(False)
         self.btn_run_adb_command.setEnabled(False)
@@ -59,8 +59,8 @@ class ToolsContentWidget(QWidget):
 
     def bind_events(self):
         self.btn_install_driver.clicked.connect(adb.install_driver)
-        self.btn_restart_server.clicked.connect(adb.restart_server)
-        self.btn_reboot_device.clicked.connect(adb.reboot_device)
+        self.btn_restart_server.clicked.connect(self.restart_server)
+        self.btn_reboot_device.clicked.connect(self.reboot_device)
         self.btn_enable_wifi.clicked.connect(self.connect_wifi)
         self.btn_disable_wifi.clicked.connect(self.disconnect_wifi)
         self.btn_switch_region.clicked.connect(self.switch_region)
@@ -68,6 +68,16 @@ class ToolsContentWidget(QWidget):
         self.btn_install_app.clicked.connect(self.install_app)
         self.btn_manage_apps.clicked.connect(self.manage_apps)
         self.btn_run_adb_command.clicked.connect(self.run_adb_command)
+
+    def restart_server(self):
+        ans = MsgConfirm(parent=self).exec()
+        if ans == QMessageBox.Yes:
+            self.window.restart_adb()
+
+    def reboot_device(self):
+        ans = MsgConfirm(parent=self).exec()
+        if ans == QMessageBox.Yes:
+            adb.reboot_device()
 
     def connect_wifi(self):
         adb.connect_wifi()
@@ -100,3 +110,13 @@ class ToolsContentWidget(QWidget):
         run_adb_command_dialog = RunAdbCommandDialog(parent=self)
         run_adb_command_dialog.setModal(True)
         run_adb_command_dialog.exec()
+
+class MsgConfirm(QMessageBox):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setIcon(QMessageBox.Question)
+        self.setStandardButtons(QMessageBox.Yes | QMessageBox.No)  # type: ignore
+        self.setDefaultButton(QMessageBox.No)
+        self.setText('Вы уверены?')
+        self.setInformativeText('Не пользуйтесь инструментами, пока устройство не переподключится')
+        self.setWindowTitle('Подтверждение')

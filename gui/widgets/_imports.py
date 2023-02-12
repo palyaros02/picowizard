@@ -1,7 +1,7 @@
 # i know this is a bad way to do this, but it works for now, and i'm too lazy to figure out how python's import system works
 
 from PySide6.QtCore import (
-    Qt, QTimer, QTranslator, QThread
+    Qt, QTimer, QTranslator, QThread, QObject, Signal, Slot
     )
 
 from PySide6.QtGui import (
