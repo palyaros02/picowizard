@@ -46,6 +46,7 @@ class ADB(metaclass=MetaSingleton):
         self._adbpath = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'platform-tools', 'adb.exe')
         self._device = None
         self._connected_status: Status = Status.DISCONNECTED
+        self._ip = ''
 
     def __call__(self, *args, wait: bool = True, **kwargs) -> ADBOutput:
         _process = self.__create_adb_process(*args, **kwargs)
@@ -85,9 +86,9 @@ class ADB(metaclass=MetaSingleton):
         for device in devices:
             if device.tags['device'].startswith('PICO'):
                 if '_3' in device.tags['model']:
-                    device.tags['type'] = 'PICO3'
+                    device.tags['type'] = 'pico3'
                 else:
-                    device.tags['type'] = 'PICO4'
+                    device.tags['type'] = 'pico4'
                 self._device = device
                 if device.name.endswith('5555'):
                     self._connected_status = Status.WIFI
@@ -154,6 +155,11 @@ class ADB(metaclass=MetaSingleton):
 
     def get_region(self):
         return self('shell settings get global user_settings_initialized')
+
+    def get_device_ip(self) -> str:
+        if not self._ip:
+            self.__parse_ip()
+        return self._ip
 
 
 
@@ -284,7 +290,8 @@ class ADB(metaclass=MetaSingleton):
                     continue
             for line in adb_output: # type: ignore
                 if 'inet ' in line:
-                    return line.split()[1].split('/')[0]
+                    self._ip = line.split()[1].split('/')[0]
+                    return self._ip
             raise Exception('Ip not found in wlan0 interface. Is the device connected to a network?')
         else:
             self.__start_tcpip()

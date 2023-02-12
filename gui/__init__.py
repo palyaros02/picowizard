@@ -4,15 +4,12 @@ class MainWindow(QMainWindow):
     def __init__(self) -> None:
         super().__init__()
         self.create_widgets()
-        self.init_ui()
         self.setup_ui()
+        self.init_ui()
         self.retranslate_ui()
         self.bind_events()
         # self.restart_adb()
         self.start_polling()
-
-        # timer
-        self.timer = QTimer()
 
     def create_widgets(self) -> None:
         # left_panel
@@ -32,6 +29,7 @@ class MainWindow(QMainWindow):
         self.device_status = QLabel()
         self.device_usb_status_picture = QLabel()
         self.device_wifi_status_picture = QLabel()
+        self.btn_open_stream = QPushButton('Запустить трансляцию')
         # self.device_tags = QTableWidget()
         self.btn_update_app = QPushButton('Обновления')
         self.version = QLabel('v' + config.get('DO_NOT_MODIFY', 'version'))
@@ -104,7 +102,7 @@ class MainWindow(QMainWindow):
         # self.device_tags.verticalHeader().setVisible(False)
         # self.device_tags.horizontalHeader().setVisible(False)
         # right_panel.addWidget(self.device_tags)
-
+        right_panel.addWidget(self.btn_open_stream)
         right_panel.addItem(QSpacerItem(0, 0, QSizePolicy.Minimum, QSizePolicy.Expanding))
 
         ## update button and version
@@ -116,10 +114,11 @@ class MainWindow(QMainWindow):
 
         self.main_layout.addLayout(right_panel)
 
-    def setup_ui(self) -> None:
         central_widget = QWidget()
         central_widget.setLayout(self.main_layout)
         self.setCentralWidget(central_widget)
+
+    def setup_ui(self) -> None:
         self.setWindowTitle("PicoF*cker")
         self.setMinimumSize(800, 600)
         cp = QGuiApplication.primaryScreen().availableGeometry().center()
@@ -141,6 +140,7 @@ class MainWindow(QMainWindow):
         self.btn_community.clicked.connect(lambda: self.set_content_widget(CommunityContentWidget()))
         self.btn_settings.clicked.connect(lambda: self.set_content_widget(SettingsContentWidget()))
         self.btn_update_app.clicked.connect(self.update_app)
+        self.btn_open_stream.clicked.connect(self.open_stream)
 
     def set_content_widget(self, widget) -> None:
         self.main_layout.removeWidget(self.content_widget)
@@ -184,14 +184,15 @@ class MainWindow(QMainWindow):
         self.device_picture.setPixmap(QPixmap(path))
 
     def start_polling(self, interval=config.getint('DO_NOT_MODIFY', 'polling_interval')):
-        self.timer.timeout.connect(self.update_device)
-        self.timer.start(interval)
+        self.polling_timer = QTimer()
+        self.polling_timer.timeout.connect(self.update_device)
+        self.polling_timer.start(interval)
 
     def pause_polling(self) -> None:
-        self.timer.stop()
+        self.polling_timer.stop()
 
     def resume_polling(self) -> None:
-        self.timer.start()
+        self.polling_timer.start()
 
     def update_device(self) -> None:
         try:
@@ -203,7 +204,7 @@ class MainWindow(QMainWindow):
         else:
             self.device_name.setText(device.name)
             self.device_status.setText(status)
-            if device.tags['type'] == 'PICO4':
+            if device.tags['type'] == 'pico4':
                 self.set_device_picture('./gui/img/pico4.png')
             else:
                 self.set_device_picture('./gui/img/pico3.png')
@@ -212,6 +213,16 @@ class MainWindow(QMainWindow):
 
     def restart_adb(self) -> None:
         adb.restart_server()
+
+    def open_stream(self) -> None:
+        ip = adb.get_device_ip()
+        os.startfile(f'http://{ip}:3342/cast')
+        msg = QMessageBox()
+        msg.setWindowTitle('Трансляция')
+        msg.setText(f'Убедитесь, что вы включили трансляцию в настройках шлема.\n\n"Настройки" -> "Основные" -> "Трансляция, запись и скриншот"')
+        msg.setIcon(QMessageBox.Information)
+        msg.setStandardButtons(QMessageBox.Ok)
+        msg.exec_()
 
     def update_app(self) -> None:
         #FIXME: сделать нормальное обновление
