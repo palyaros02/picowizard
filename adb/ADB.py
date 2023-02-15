@@ -23,19 +23,10 @@ class ADB(metaclass=MetaSingleton):
     DEBUG = config.getboolean('DEBUG', 'debug_adb')
     """
     TODO:
-        [*] __call__ for custom adb commands
-        [*] get_devices() for getting devices
-        [*] finding PICO device and setting it as default
-        [*] device info
-        [*] connect_wifi() for connecting to wifi
-        [*] disconnect_wifi() for disconnecting from wifi
-        [*] start and kill adb server
-        [*] install driver
         [] enable usb tethering via `adb shell am start -n com.android.settings/.TetherSettings && adb shell input keyevent 20 && adb shell input keyevent 20 && adb shell input keyevent KEYCODE_ENTER && sleep 2 && adb shell input keyevent 4` -- does not work
         [] file transfer with returning progress
         [] apk installation/uninstallation/launching/disabling/enabling
             [] do not forget obb files
-        [*] reboot
         [] shell
         [] apps management:
             [] list with getting pictures
@@ -47,6 +38,7 @@ class ADB(metaclass=MetaSingleton):
         self._device = None
         self._connected_status: Status = Status.DISCONNECTED
         self._ip = ''
+        self._is_tcpip = False
 
     def __call__(self, *args, wait: bool = True, **kwargs) -> ADBOutput:
         _process = self.__create_adb_process(*args, **kwargs)
@@ -62,7 +54,6 @@ class ADB(metaclass=MetaSingleton):
         # ['ID device product:Phoenix_ovs model:A8110 device:PICOA8110 transport_id:4', ...] - pico4
         # ID device product:A7P10 model:Pico_Neo_3_Link device:PICOA7H10 transport_id:2 - pico3
         # device product:A7H10 model:Pico_Neo_3 device:PICOA7H10 transport_id:1
-        # device product:A7P10 model:Pico_Neo_3_Link device:PICOA7H10 transport_id:1
         if not devices_lines_list:
             self._connected_status = Status.NO_DEVICES
             raise Exception('No devices found')
@@ -90,8 +81,6 @@ class ADB(metaclass=MetaSingleton):
                 else:
                     device.tags['type'] = 'pico4'
                 self._device = device
-                if not self._ip:
-                    self.__is_tcp_runned()
                 if device.name.endswith('5555'):
                     self._connected_status = Status.WIFI
                     break
@@ -132,6 +121,7 @@ class ADB(metaclass=MetaSingleton):
     def reboot_device(self) -> None:
         print('Rebooting device, please wait...')
         self('reboot')
+        self._is_tcpip = False
 
     def connect_usb(self) -> None:
         self('connect usb')
@@ -140,9 +130,8 @@ class ADB(metaclass=MetaSingleton):
         if self.is_wifi():
             print('Already connected to wifi')
             return
-        if not self.is_wifi_ready():
+        if not self._is_tcpip:
             self.__start_tcpip(port)
-            # time.sleep(2)
         self(f'connect {self.__parse_ip()}:{port}')
         self.connect()
 
@@ -260,11 +249,12 @@ class ADB(metaclass=MetaSingleton):
         pass
 
     def push(self, local: str, remote: str) -> subprocess.Popen:
-        process = self(f'push -p {local} {remote}', wait=False).process
+        process = self(f'push {local} {remote}', wait=False).process
         return process
 
-    def pull(self):
-        pass
+    def pull(self, remote: str, local: str) -> subprocess.Popen:
+        process = self(f'pull {remote} {local}', wait=False).process
+        return process
 
     def get_apps(self):
         pass
@@ -272,9 +262,12 @@ class ADB(metaclass=MetaSingleton):
     #=== Private Methods ===#
 
     def __start_tcpip(self, port: int=5555) -> None:
+        if self._is_tcpip:
+            return
         try:
             self(f'tcpip {port}')
             self._connected_status = Status.WIFI_READY
+            self._is_tcpip = True
         except Exception as e:
             raise Exception('Failed to start tcpip!\n' + str(e))
 
@@ -299,16 +292,6 @@ class ADB(metaclass=MetaSingleton):
         else:
             self.__start_tcpip()
             return self.__parse_ip()
-
-    def __is_tcp_runned(self) -> bool:
-        res = str(self('shell ip addr show wlan0', wait=True))
-        if 'inet ' in res:
-            self._connected_status = Status.WIFI_READY
-            self.__parse_ip()
-            return True
-        else:
-            return False
-
 
     def __parse_args(self, args: tuple[str]) -> list[str]:
         _args = []

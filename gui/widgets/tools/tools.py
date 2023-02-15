@@ -75,6 +75,7 @@ class ToolsContentWidget(QWidget):
             self.window.restart_adb()
 
     def reboot_device(self):
+        # FIXIT:
         ans = MsgConfirm(parent=self).exec()
         if ans == QMessageBox.Yes:
             adb.reboot_device()

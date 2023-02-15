@@ -13,6 +13,7 @@ from PySide6.QtWidgets import (
     QMainWindow, QPushButton, QSizePolicy, QSpacerItem,
     QVBoxLayout, QWidget, QComboBox, QDialog, QTableWidget, QLineEdit, QDialogButtonBox,
     QMessageBox, QButtonGroup, QRadioButton, QProgressBar, QFileDialog, QCheckBox, QFrame,
+    QScrollArea,
     )
 
 from adb import adb

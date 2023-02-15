@@ -8,7 +8,6 @@ class MainWindow(QMainWindow):
         self.init_ui()
         self.retranslate_ui()
         self.bind_events()
-        # self.restart_adb()
         self.start_polling()
 
     def create_widgets(self) -> None:
@@ -30,7 +29,6 @@ class MainWindow(QMainWindow):
         self.device_usb_status_picture = QLabel()
         self.device_wifi_status_picture = QLabel()
         self.btn_open_stream = QPushButton('Запустить трансляцию')
-        # self.device_tags = QTableWidget()
         self.btn_update_app = QPushButton('Обновления')
         self.version = QLabel('v' + config.get('DO_NOT_MODIFY', 'version'))
 
@@ -94,21 +92,14 @@ class MainWindow(QMainWindow):
         hbox.addWidget(self.device_status)
         right_panel.addLayout(hbox)
 
-        # text = BoldLabel('Теги:')
-        # text.setAlignment(Qt.AlignCenter)
-        # right_panel.addWidget(text)
-        # self.device_tags.setColumnCount(2)
-        # self.device_tags.setRowCount(4)
-        # self.device_tags.verticalHeader().setVisible(False)
-        # self.device_tags.horizontalHeader().setVisible(False)
-        # right_panel.addWidget(self.device_tags)
         right_panel.addWidget(self.btn_open_stream)
+
         right_panel.addItem(QSpacerItem(0, 0, QSizePolicy.Minimum, QSizePolicy.Expanding))
 
         ## update button and version
         hbox = QHBoxLayout()
         hbox.addWidget(self.btn_update_app)
-        self.version.setAlignment(Qt.AlignRight|Qt.AlignBottom) # type: ignore
+        self.version.setAlignment(Qt.AlignRight|Qt.AlignBottom)
         hbox.addWidget(self.version)
         right_panel.addLayout(hbox)
 
