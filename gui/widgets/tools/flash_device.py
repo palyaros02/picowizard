@@ -1,4 +1,6 @@
 from .._imports import *
+from adb_tools import Downloader
+from adb_tools import Pusher
 
 class FlashDeviceDialog(QDialog):
     def __init__(self, parent=None):
@@ -93,7 +95,7 @@ class FlashDeviceDialog(QDialog):
         vbox.addWidget(self.btn_instructions)
         vbox.addWidget(QLabel('_' * 60))
 
-        vbox.addWidget(QLabel('Псевдо-прошивка'))
+        # vbox.addWidget(QLabel('Псевдо-прошивка', alignment=Qt.AlignCenter))
 
         self.setLayout(vbox)
 
@@ -207,6 +209,8 @@ class FlashDeviceDialog(QDialog):
 
     def download_cancelled(self):
         self.__set_download_widgets_enabled(True, 'Отменено')
+        self.download_progressbar.setValue(0)
+        self.btn_select_firmware.setEnabled(True)
 
     def download_finished(self):
         self.__set_download_widgets_enabled(True, 'Скачивание успешно завершено :)')
@@ -217,6 +221,7 @@ class FlashDeviceDialog(QDialog):
 
     def download_error(self, error: str):
         self.__set_download_widgets_enabled(True, 'Ошибка при загрузке :(')
+        self.btn_select_firmware.setEnabled(True)
         msg = QMessageBox()
         msg.setIcon(QMessageBox.Critical)
         msg.setWindowTitle('Ошибка')
@@ -361,188 +366,3 @@ class FinishDialog(QDialog):
         mainLayout = QVBoxLayout()
         mainLayout.addWidget(scrollArea)
         self.setLayout(mainLayout)
-
-
-class Downloader(QTimer):
-    download_started = Signal()
-    download_cancelled = Signal()
-    download_finished = Signal()
-    download_error = Signal(str)
-
-    download_update_progress = Signal(int)
-    download_update_label = Signal(str)
-
-    def __init__(self, url: str, path: str):
-        QTimer.__init__(self)
-        self.setInterval(1000)
-        self.timeout.connect(self.poll_download)
-
-        self.url = url
-        self.path = path
-        self.cancelled = False
-
-        self.total_size = 0
-        self.wrote = 0
-
-        self.download_thread = DownloaderThread(self.url, self.path, self.download_error)
-        self.download_thread.finished.connect(self.download_finished)
-        self.download_thread.finished.connect(self.stop)
-        self.download_thread.total_size_signal.connect(self.set_total_size)
-        self.download_thread.wrote_signal.connect(self.set_wrote)
-
-    def set_total_size(self, total_size: int):
-        self.total_size = total_size
-
-    def set_wrote(self, wrote: int):
-        self.wrote = wrote
-
-    def start(self) -> None:
-        self.download_thread.start()
-        self.download_started.emit()
-        self.start_time = time.time()
-        super().start()
-
-    def cancel(self) -> None:
-        super().stop()
-        self.cancelled = True
-        self.download_thread.cancel()
-        self.download_cancelled.emit()
-
-    def poll_download(self):
-        total_size = self.total_size
-        wrote = self.wrote
-        percent = int(wrote * 100 / total_size) if total_size > 0 else 0
-
-        time_diff = time.time() - self.start_time
-        wrote = int(wrote / 1024 / 1024)
-        total_size = round(total_size / 1024 / 1024, 2)
-        speed = round(wrote / time_diff, 2) if time_diff > 0 else 0.01
-        eta = (total_size - wrote) / speed if speed > 0 else 0
-
-        label_text = f'{wrote} / {total_size} Mб, ({speed} Mб/с), ост. {int(eta // 60)} мин. {int(eta % 60)} сек.'
-        if eta > 0:
-            self.download_update_progress.emit(percent)
-            self.download_update_label.emit(label_text)
-
-class DownloaderThread(QThread):
-    total_size_signal = Signal(object)
-    wrote_signal = Signal(object)
-    def __init__(self, url: str, path: str, download_error: Signal):
-        QThread.__init__(self)
-        self.url = url
-        self.path = path
-        self.download_error = download_error
-        self.cancelled = False
-
-    def run(self) -> None:
-        response = requests.get(self.url, stream=True)
-        self.total_size = int(response.headers.get('content-length', 0))
-        self.total_size_signal.emit(self.total_size)
-        block_size = 1024 * 1024 # 10 Mb
-        self.wrote = 0
-        try:
-            if self.total_size == 0:
-                raise Exception('Не удалось получить размер файла. Попробуйте скачать его вручную и выбрать.')
-            with open(self.path, 'wb') as f:
-                for data in response.iter_content(block_size):
-                    if self.cancelled:
-                        raise Exception('Отменено пользователем')
-                    self.wrote += len(data)
-                    f.write(data)
-                    self.wrote_signal.emit(self.wrote)
-        except Exception as e:
-            if self.wrote != self.total_size:
-                self.download_error.emit(str(e))
-                os.remove(self.path)
-        finally:
-            self.finished.emit()
-
-    def cancel(self) -> None:
-        self.cancelled = True
-        self.terminate()
-
-class Pusher(QTimer):
-    push_started = Signal()
-    push_cancelled = Signal()
-    push_finished = Signal()
-    push_error = Signal(str)
-
-    push_update_progress = Signal(int)
-    push_update_label = Signal(str)
-
-    def __init__(self, local: str, remote: str):
-        QTimer.__init__(self)
-        self.setInterval(1000)
-        self.timeout.connect(self.poll_remote_size)
-
-        self.local = local
-        self.remote = remote
-        self.cancelled = False
-        self.error = None
-
-        self.pusher_thread = PusherThread(self.local, self.remote, self.push_error)
-        self.pusher_thread.push_error.connect(self.finisher)
-        self.pusher_thread.finished.connect(self.finisher)
-
-
-    def start(self) -> None:
-        self.pusher_thread.start()
-        self.push_started.emit()
-        self.start_time = time.time()
-        super().start()
-
-    def cancel(self) -> None:
-        self.pusher_thread.cancel()
-        self.push_cancelled.emit()
-        self.cancelled = True
-        super().stop()
-
-    def finisher(self):
-        if self.cancelled:
-            self.push_cancelled.emit()
-        elif self.error:
-            self.push_error.emit(self.error)
-        else:
-            self.push_finished.emit()
-        self.stop()
-
-    def poll_remote_size(self) -> None:
-        ls_output = adb(f"shell ls -l {self.remote} | grep {self.remote.split('/')[-1]}")
-        remote_size = int(ls_output.split()[4])
-        local_size = os.path.getsize(self.local)
-        percent = int(remote_size * 100 / local_size)
-
-        time_diff = time.time() - self.start_time
-        remote_size = round(remote_size / 1024 / 1024, 2)
-        local_size = round(local_size / 1024 / 1024, 2)
-        speed = round(remote_size / time_diff, 2) if time_diff > 0 else 0.01
-        eta = (local_size - remote_size) / speed if speed > 0 else 0
-
-        label_text = f'{remote_size} / {local_size} Mб, ({speed} Mб/с), ост. {int(eta // 60)} мин. {int(eta % 60)} сек.'
-
-        self.push_update_progress.emit(percent)
-        self.push_update_label.emit(label_text)
-
-
-class PusherThread(QThread):
-    def __init__(self, local: str, remote: str, push_error: Signal):
-        QThread.__init__(self)
-        self.local = local
-        self.remote = remote
-        self.push_error = push_error
-        self.cancelled = False
-
-    def run(self) -> None:
-        try:
-            if not self.local:
-                print('Не выбран файл для загрузки')
-                raise Exception('Не выбран файл для загрузки')
-            self.push_process = adb.push(self.local, self.remote)
-            self.push_process.wait()
-        except Exception as e:
-            self.push_error.emit(str(e))
-
-    def cancel(self) -> None:
-        self.cancelled = True
-        if self.push_process:
-            self.push_process.terminate()
