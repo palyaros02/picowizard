@@ -154,99 +154,18 @@ class ADB(metaclass=MetaSingleton):
             self.__parse_ip()
         return self._ip
 
-    def install_apk(self):
-        """
-        adb shell pm install [-lrtsfdgw] [-i PACKAGE] [--user USER_ID|all|current]
-        [-p INHERIT_PACKAGE] [--install-location 0/1/2]
-        [--install-reason 0/1/2/3/4] [--originating-uri URI]
-        [--referrer URI] [--abi ABI_NAME] [--force-sdk]
-        [--preload] [--instantapp] [--full] [--dont-kill]
-        [--enable-rollback]
-        [--force-uuid internal|UUID] [--pkg PACKAGE] [-S BYTES] [--apex]
-        [PATH|-]
-        Install an application.  Must provide the apk data to install, either as a
-        file path or '-' to read from stdin.  Options are:
-        -l: forward lock application
-        -R: disallow replacement of existing application
-        -t: allow test packages
-        -i: specify package name of installer owning the app
-        -s: install application on sdcard
-        -f: install application on internal flash
-        -d: allow version code downgrade (debuggable packages only)
-        -p: partial application install (new split on top of existing pkg)
-        -g: grant all runtime permissions
-        -S: size in bytes of package, required for stdin
-        --user: install under the given user.
-        --dont-kill: installing a new feature split, don't kill running app
-        --restrict-permissions: don't whitelist restricted permissions at install
-        --originating-uri: set URI where app was downloaded from
-        --referrer: set URI that instigated the install of the app
-        --pkg: specify expected package name of app being installed
-        --abi: override the default ABI of the platform
-        --instantapp: cause the app to be installed as an ephemeral install app
-        --full: cause the app to be installed as a non-ephemeral full app
-        --install-location: force the install location:
-            0=auto, 1=internal only, 2=prefer external
-        --install-reason: indicates why the app is being installed:
-            0=unknown, 1=admin policy, 2=device restore,
-            3=device setup, 4=user request
-        --force-uuid: force install on to disk volume with given UUID
-        --apex: install an .apex file, not an .apk
+    def install_apk(self, name: str, downgrade: bool , tests: bool, permissions: bool) -> None:
+        keys = '-'
+        if downgrade:
+            keys += 'd'
+        if tests:
+            keys += 't'
+        if permissions:
+            keys += 'g'
+        res = self(f'shell pm install {keys if keys != "-" else ""} /data/local/tmp/{name}')
 
-
-        adb push apk.apk /data/local/tmp
-        adb shell pm install /data/local/tmp/apk.apk
-        adb shell rm /data/local/tmp/apk.apk
-
-
-    def execute(cmd):
-        popen = subprocess.Popen(cmd, stdout=subprocess.PIPE, universal_newlines=True)
-        for line in popen.stdout:
-            print(line.decode(), end='')
-        popen.stdout.close()
-        return_code = popen.wait()
-        if return_code:
-            raise subprocess.CalledProcessError(return_code, cmd)
-
-    # Example
-    for path in execute(["locate", "a"]):
-        print(path, end="")
-
-
-
-
-    def execute(command):
-        process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-
-        # Poll process for new output until finished
-        while True:
-            nextline = process.stdout.readline()
-            if nextline == '' and process.poll() is not None:
-                break
-            sys.stdout.write(nextline)
-            sys.stdout.flush()
-
-        output = process.communicate()[0]
-        exitCode = process.returncode
-
-        if (exitCode == 0):
-            return output
-        else:
-            raise ProcessException(command, exitCode, output)
-        """
-        pass
-
-    def uninstall_app(self):
-        """
-        pm uninstall [-k] [--user USER_ID] [--versionCode VERSION_CODE] PACKAGE [SPLIT]
-        Remove the given package name from the system.  May remove an entire app
-        if no SPLIT name is specified, otherwise will remove only the split of the
-        given app.  Options are:
-        -k: keep the data and cache directories around after package removal.
-        --user: remove the app from the given user.
-        --versionCode: only uninstall if the app has the given version code.
-        """
-        pass
+    def uninstall_app(self, pkg_name: str, keep_data: bool):
+        res = self(f'shell pm uninstall {"-k" if keep_data else ""} {pkg_name}')
 
     def push(self, local: str, remote: str) -> subprocess.Popen:
         process = self(f'push {local} {remote}', wait=False).process
