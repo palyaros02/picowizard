@@ -1,2 +1,2 @@
 call .venv\Scripts\activate
-call python main.pyw
+call .venv\Scripts\python.exe main.pyw
