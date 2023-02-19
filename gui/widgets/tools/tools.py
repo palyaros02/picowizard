@@ -46,13 +46,22 @@ class ToolsContentWidget(QWidget):
         vbox.addWidget(self.btn_usb_tethering)
 
         #disable buttons
-        if adb.get_device().tags['type'] == 'PICO3':
-            self.btn_switch_region.setText('Смена региона доступна только на PICO4')
+        try:
+            if adb.get_device().tags['type'] == 'PICO3':
+                self.btn_switch_region.setText('Смена региона доступна только на PICO4')
+        except:
+            self.btn_restart_server.setEnabled(False)
+            self.btn_reboot_device.setEnabled(False)
+            self.btn_disable_wifi.setEnabled(False)
+            self.btn_enable_wifi.setEnabled(False)
             self.btn_switch_region.setEnabled(False)
-        self.btn_install_app.setEnabled(False)
-        self.btn_manage_apps.setEnabled(False)
-        self.btn_run_adb_command.setEnabled(False)
-        self.btn_usb_tethering.setEnabled(False)
+            self.btn_flash_device.setEnabled(False)
+        finally:
+            self.btn_switch_region.setEnabled(False)
+            self.btn_install_app.setEnabled(False)
+            self.btn_manage_apps.setEnabled(False)
+            self.btn_run_adb_command.setEnabled(False)
+            self.btn_usb_tethering.setEnabled(False)
 
         vbox.addItem(QSpacerItem(0, 0, QSizePolicy.Expanding, QSizePolicy.Expanding))
         self.setLayout(vbox)

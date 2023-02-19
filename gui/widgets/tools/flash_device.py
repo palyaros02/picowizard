@@ -60,7 +60,7 @@ class FlashDeviceDialog(QDialog):
 
         vbox = QVBoxLayout()
         if adb.get_device().tags['type'] == 'pico4':
-            vbox.addWidget(QLabel('Ваш ro.oem.state: ' + str(self.oem_state)), alignment=Qt.AlignCenter)
+            vbox.addWidget(QLabel('Ваш ro.oem.state: ' + str(self.oem_state), alignment=Qt.AlignCenter))
             vbox.addWidget(QLabel('Версию прошивки понизить нельзя!', wordWrap=True, alignment=Qt.AlignCenter, styleSheet='color: red;'))
 
         vbox.addWidget(QLabel('Выберите прошивку для скачивания. Загрузка начинается не сразу, нужно немного подождать.', wordWrap=True, alignment=Qt.AlignCenter))

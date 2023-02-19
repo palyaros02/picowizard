@@ -99,7 +99,7 @@ class MainWindow(QMainWindow):
         ## update button and version
         hbox = QHBoxLayout()
         hbox.addWidget(self.btn_update_app)
-        self.version.setAlignment(Qt.AlignRight|Qt.AlignBottom)
+        self.version.setAlignment(Qt.AlignRight | Qt.AlignBottom)
         hbox.addWidget(self.version)
         right_panel.addLayout(hbox)
 

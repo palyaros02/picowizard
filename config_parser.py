@@ -28,19 +28,22 @@ firmware = {
         'oem': {
             'cn': {
                 '5.3.1' : 'https://lf-iot-ota.picovr.com/obj/iot-ota/5.3.1-202301051635-RELEASE-user-phoenix-b2669-c435f2dfde.zip',
+                '5.4.0' : 'https://lf-iot-ota.picovr.com/obj/iot-ota/5.4.0-202302082133-RELEASE-user-phoenix-b3033-575cb027b3.zip',
             },
             'gl': {
                 '5.2.7' : 'https://mirror.lewd.wtf/archive/picoxr/firmware/pico4/global/5.2.7-202212020445-RELEASE-user-phoenix-b2122-a15f46c085.zip',
                 '5.3.1' : 'https://mirror.lewd.wtf/archive/picoxr/firmware/pico4/global/5.3.1-202301051855-RELEASE-user-phoenix-b2672-e5008f4620.zip',
                 '5.3.2' : 'https://mirror.lewd.wtf/archive/picoxr/firmware/pico4/global/5.3.2-202301071817-RELEASE-user-phoenix-b2705-0d2c0cb6ec.zip',
+                '5.4.0' : 'https://mirror.lewd.wtf/archive/picoxr/firmware/pico4/global/5.4.0-202302171231-RELEASE-user-phoenix-b3159-21724b5b8e.zip',
             },
         },
         'non_oem': {
-            'cn': {'прошивок нет': ''},
+            'cn': {'5.4.0' : 'https://lf-iot-ota.picovr.com/obj/iot-ota/5.4.0-202302091032-RELEASE-user-phoenix-b3046-e076814e50.zip',},
             'gl': {
                 '5.2.7' : 'https://mirror.lewd.wtf/archive/picoxr/firmware/pico4/global/non_oem/5.2.7-202212020323-RELEASE-user-phoenix-b2119-09638d5e07.zip',
                 '5.3.2' : 'https://mirror.lewd.wtf/archive/picoxr/firmware/pico4/global/non_oem/5.3.2-202301071642-RELEASE-user-phoenix-b2704-ae2fa5f1b3.zip',
                 '5.3.1' : 'https://mirror.lewd.wtf/archive/picoxr/firmware/pico4/global/non_oem/5.3.1-202301051632-RELEASE-user-phoenix-b2667-6c560f9e2b.zip',
+                '5.4.0' : 'https://mirror.lewd.wtf/archive/picoxr/firmware/pico4/global/non_oem/5.4.0-202302171557-RELEASE-user-phoenix-b3162-3d2f0dbe1b.zip',
             },
         },
     },
