@@ -8,10 +8,10 @@ class Config(configparser.ConfigParser):
             comment_prefixes=('#'),
             interpolation=configparser.ExtendedInterpolation(),
         )
-        self.read('config.cfg')
+        self.read('config.cfg', encoding="utf8")
 
     def reload(self):
-        self.read('config.cfg')
+        self.read('config.cfg', encoding="utf8")
 
     def save(self):
         with open('config.cfg', 'w') as configfile:
