@@ -1,4 +1,5 @@
 .venv/
 .development/
 __pycache__/
+firmwares/
 *.ui
